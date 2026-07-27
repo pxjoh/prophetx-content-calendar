@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  --color-navy-950: #05070d;
+  --color-navy-900: #090e18;
+  --color-navy-850: #0c1220;
+  --color-navy-800: #10182a;
+  --color-navy-700: #182236;
+  --color-navy-600: #223049;
+
+  --color-teal-glow: #2dd4bf;
+
+  --background: var(--color-navy-950);
+  --foreground: #f2f5f8;
+}
+
+@theme inline {
+  --color-navy-950: var(--color-navy-950);
+  --color-navy-900: var(--color-navy-900);
+  --color-navy-850: var(--color-navy-850);
+  --color-navy-800: var(--color-navy-800);
+  --color-navy-700: var(--color-navy-700);
+  --color-navy-600: var(--color-navy-600);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: rgba(45, 212, 191, 0.35);
+  color: #ffffff;
+}
+
+/* Thin, dark scrollbars to match the command-center feel */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-navy-600) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-navy-600);
+  border-radius: 9999px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-teal-glow);
+  outline-offset: 2px;
+}
