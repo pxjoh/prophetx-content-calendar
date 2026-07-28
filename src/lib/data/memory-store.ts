@@ -15,6 +15,7 @@ import type {
   Storyline,
 } from "@/types/domain";
 import * as seed from "./sample-data";
+import { applyContentIdeaFilters, applyGameFilters, applyMajorEventFilters, applyStorylineFilters } from "./filters";
 import type {
   ContentIdeaFilterParams,
   ContentIdeaInput,
@@ -80,12 +81,6 @@ function toGameWithTeams(game: Game): GameWithTeams {
   };
 }
 
-function matchesSearch(haystacks: (string | null | undefined)[], term: string) {
-  const needle = term.trim().toLowerCase();
-  if (!needle) return true;
-  return haystacks.some((h) => h && h.toLowerCase().includes(needle));
-}
-
 export const memoryStore: DataStore = {
   async listLeagues() {
     return seed.leagues.filter((l) => l.is_active).sort((a, b) => a.sort_order - b.sort_order);
@@ -96,65 +91,14 @@ export const memoryStore: DataStore = {
   },
 
   async listGames(params: GameFilterParams) {
-    let result = games.filter((g) => (params.includeArchived ? true : !g.archived_at));
-
-    if (params.from) result = result.filter((g) => new Date(g.start_time) >= params.from!);
-    if (params.to) result = result.filter((g) => new Date(g.start_time) <= params.to!);
-    if (params.leagueSlugs?.length) {
-      const slugs = new Set(params.leagueSlugs);
-      result = result.filter((g) => slugs.has(leagueById(g.league_id).slug));
-    }
-    if (params.teamId) {
-      result = result.filter((g) => g.home_team_id === params.teamId || g.away_team_id === params.teamId);
-    }
-    if (params.conferenceId) {
-      result = result.filter((g) => {
-        const home = teamById(g.home_team_id);
-        const away = teamById(g.away_team_id);
-        return home.conference_id === params.conferenceId || away.conference_id === params.conferenceId;
-      });
-    }
-    if (params.rankedOnly) {
-      result = result.filter((g) => teamById(g.home_team_id).ranking != null || teamById(g.away_team_id).ranking != null);
-    }
-    if (params.rivalryOnly) result = result.filter((g) => g.is_rivalry);
-    if (params.hasPlayoffImplications) result = result.filter((g) => !!g.playoff_implications);
-    if (params.hasTournamentImplications) result = result.filter((g) => !!g.tournament_implications);
-    if (params.importance?.length) {
-      const set = new Set(params.importance);
-      result = result.filter((g) => set.has(g.importance));
-    }
-    if (params.tvNetwork) result = result.filter((g) => g.tv_network === params.tvNetwork);
-
+    const result = games.filter((g) => (params.includeArchived ? true : !g.archived_at));
     const withMeta = result.map(toGameWithTeams);
-
-    let filtered = withMeta;
-    if (params.hasContentIdeas === true) filtered = filtered.filter((g) => g.content_idea_count > 0);
-    if (params.hasContentIdeas === false) filtered = filtered.filter((g) => g.content_idea_count === 0);
-    if (params.hasGraphicRequest) filtered = filtered.filter((g) => g.has_graphic_request);
-    if (params.hasVideoRequest) filtered = filtered.filter((g) => g.has_video_request);
-
-    if (params.search) {
-      const gameStorylineText = (gameId: string) =>
-        storylines.filter((s) => s.game_id === gameId).map((s) => `${s.title} ${s.description ?? ""}`).join(" ");
-      const gameIdeaText = (gameId: string) =>
-        contentIdeas.filter((c) => c.game_id === gameId).map((c) => `${c.title} ${c.description ?? ""}`).join(" ");
-
-      filtered = filtered.filter((g) =>
-        matchesSearch(
-          [
-            g.home_team.name,
-            g.away_team.name,
-            g.rivalry_name,
-            gameStorylineText(g.id),
-            gameIdeaText(g.id),
-          ],
-          params.search!
-        )
-      );
-    }
-
-    return filtered.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    return applyGameFilters(withMeta, params, {
+      getStorylineText: (gameId) =>
+        storylines.filter((s) => s.game_id === gameId).map((s) => `${s.title} ${s.description ?? ""}`).join(" "),
+      getContentIdeaText: (gameId) =>
+        contentIdeas.filter((c) => c.game_id === gameId).map((c) => `${c.title} ${c.description ?? ""}`).join(" "),
+    });
   },
 
   async getGameDetail(id) {
@@ -181,15 +125,8 @@ export const memoryStore: DataStore = {
   },
 
   async listMajorEvents(params: MajorEventFilterParams) {
-    let result = majorEvents.filter((e) => (params.includeArchived ? true : !e.archived_at));
-    if (params.from) result = result.filter((e) => !e.start_time || new Date(e.start_time) >= params.from!);
-    if (params.to) result = result.filter((e) => !e.start_time || new Date(e.start_time) <= params.to!);
-    if (params.leagueId) result = result.filter((e) => e.league_id === params.leagueId);
-    return result.sort((a, b) => {
-      const at = a.start_time ? new Date(a.start_time).getTime() : Infinity;
-      const bt = b.start_time ? new Date(b.start_time).getTime() : Infinity;
-      return at - bt;
-    });
+    const result = majorEvents.filter((e) => (params.includeArchived ? true : !e.archived_at));
+    return applyMajorEventFilters(result, params);
   },
 
   async createMajorEvent(input: MajorEventInput) {
@@ -238,12 +175,8 @@ export const memoryStore: DataStore = {
   },
 
   async listStorylines(params: StorylineFilterParams) {
-    let result = storylines.filter((s) => (params.includeArchived ? true : !s.archived_at));
-    if (params.gameId) result = result.filter((s) => s.game_id === params.gameId);
-    if (params.majorEventId) result = result.filter((s) => s.major_event_id === params.majorEventId);
-    if (params.leagueId) result = result.filter((s) => s.league_id === params.leagueId);
-    if (params.leagueWideOnly) result = result.filter((s) => !s.game_id && !s.major_event_id && !!s.league_id);
-    return result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const result = storylines.filter((s) => (params.includeArchived ? true : !s.archived_at));
+    return applyStorylineFilters(result, params);
   },
 
   async createStoryline(input: StorylineInput) {
@@ -301,35 +234,8 @@ export const memoryStore: DataStore = {
   },
 
   async listContentIdeas(params: ContentIdeaFilterParams) {
-    let result = contentIdeas.filter((c) => (params.includeArchived ? true : !c.archived_at));
-    if (params.gameId) result = result.filter((c) => c.game_id === params.gameId);
-    if (params.majorEventId) result = result.filter((c) => c.major_event_id === params.majorEventId);
-    if (params.storylineId) result = result.filter((c) => c.storyline_id === params.storylineId);
-    if (params.status?.length) {
-      const set = new Set(params.status);
-      result = result.filter((c) => set.has(c.status));
-    }
-    if (params.contentType?.length) {
-      const set = new Set(params.contentType);
-      result = result.filter((c) => set.has(c.content_type));
-    }
-    if (params.platform?.length) {
-      const set = new Set(params.platform);
-      result = result.filter((c) => set.has(c.platform));
-    }
-    if (params.priority?.length) {
-      const set = new Set(params.priority);
-      result = result.filter((c) => set.has(c.priority));
-    }
-    if (params.onlyGraphicRequests) result = result.filter((c) => !!c.graphic_request);
-    if (params.onlyVideoRequests) result = result.filter((c) => !!c.video_concept);
-    if (params.dueOnOrBefore) {
-      result = result.filter((c) => c.due_date && new Date(c.due_date) <= params.dueOnOrBefore!);
-    }
-    if (params.search) {
-      result = result.filter((c) => matchesSearch([c.title, c.description], params.search!));
-    }
-    return result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const result = contentIdeas.filter((c) => (params.includeArchived ? true : !c.archived_at));
+    return applyContentIdeaFilters(result, params);
   },
 
   async createContentIdea(input: ContentIdeaInput) {
