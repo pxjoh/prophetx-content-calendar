@@ -10,7 +10,6 @@ import type { AppNotification } from "@/types/domain";
 const NAV_ITEMS = [
   { href: "/", label: "Schedule" },
   { href: "/major-events", label: "Major Events" },
-  { href: "/storylines", label: "Storylines" },
   { href: "/content-ideas", label: "Content Ideas" },
   { href: "/graphic-requests", label: "Graphic Requests" },
   { href: "/video-requests", label: "Video Requests" },
