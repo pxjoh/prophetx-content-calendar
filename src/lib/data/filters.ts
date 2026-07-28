@@ -5,12 +5,14 @@
 // these functions so filter behavior can never drift between the two stores.
 import type {
   ContentIdea,
+  CrmSubmission,
   GameWithTeams,
   MajorEvent,
   Storyline,
 } from "@/types/domain";
 import type {
   ContentIdeaFilterParams,
+  CrmSubmissionFilterParams,
   GameFilterParams,
   MajorEventFilterParams,
   StorylineFilterParams,
@@ -134,6 +136,33 @@ export function applyContentIdeaFilters(ideas: ContentIdea[], params: ContentIde
   }
   if (params.search) {
     result = result.filter((c) => matchesSearch([c.title, c.description], params.search!));
+  }
+
+  return [...result].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+export function applyCrmSubmissionFilters(
+  submissions: CrmSubmission[],
+  params: CrmSubmissionFilterParams
+): CrmSubmission[] {
+  let result = submissions;
+  if (params.status?.length) {
+    const set = new Set(params.status);
+    result = result.filter((c) => set.has(c.status));
+  }
+  if (params.platform?.length) {
+    const set = new Set(params.platform);
+    result = result.filter((c) => set.has(c.platform));
+  }
+  if (params.priority?.length) {
+    const set = new Set(params.priority);
+    result = result.filter((c) => set.has(c.priority));
+  }
+  if (params.dueOnOrBefore) {
+    result = result.filter((c) => c.due_date && new Date(c.due_date) <= params.dueOnOrBefore!);
+  }
+  if (params.search) {
+    result = result.filter((c) => matchesSearch([c.email_subject, c.content], params.search!));
   }
 
   return [...result].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

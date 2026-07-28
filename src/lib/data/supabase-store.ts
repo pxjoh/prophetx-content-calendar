@@ -5,10 +5,18 @@
 // in-memory store uses (see ./filters.ts) so behavior can never drift
 // between the two backends.
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { applyContentIdeaFilters, applyGameFilters, applyMajorEventFilters, applyStorylineFilters } from "./filters";
+import {
+  applyContentIdeaFilters,
+  applyCrmSubmissionFilters,
+  applyGameFilters,
+  applyMajorEventFilters,
+  applyStorylineFilters,
+} from "./filters";
 import type {
   ContentIdeaFilterParams,
   ContentIdeaInput,
+  CrmSubmissionFilterParams,
+  CrmSubmissionInput,
   DataStore,
   GameFilterParams,
   MajorEventFilterParams,
@@ -18,6 +26,7 @@ import type {
 } from "./types";
 import type {
   ContentIdea,
+  CrmSubmission,
   Game,
   GameDetail,
   GameWithTeams,
@@ -482,6 +491,53 @@ export const supabaseStore: DataStore = {
   },
   async restoreContentIdea(id) {
     const { error } = await db().from("content_ideas").update({ archived_at: null }).eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  async listCrmSubmissions(params: CrmSubmissionFilterParams) {
+    let query = db().from("crm_submissions").select("*");
+    if (!params.includeArchived) query = query.is("archived_at", null);
+    const rows = unwrap<CrmSubmission[]>(await query);
+    return applyCrmSubmissionFilters(rows, params);
+  },
+
+  async createCrmSubmission(input: CrmSubmissionInput) {
+    const row = unwrap<CrmSubmission>(
+      await db()
+        .from("crm_submissions")
+        .insert({
+          email_subject: input.email_subject,
+          content: input.content ?? null,
+          platform: input.platform,
+          priority: input.priority,
+          status: input.status,
+          due_date: input.due_date ?? null,
+          due_time: input.due_time ?? null,
+          internal_notes: input.internal_notes ?? null,
+        })
+        .select("*")
+        .single()
+    );
+    await pushNotification({
+      type: "crm_submission_added",
+      title: "New CRM submission added",
+      body: row.email_subject,
+      related_table: "crm_submissions",
+      related_id: row.id,
+    });
+    return row;
+  },
+
+  async updateCrmSubmission(id, input) {
+    return unwrap<CrmSubmission>(await db().from("crm_submissions").update(input).eq("id", id).select("*").single());
+  },
+
+  async archiveCrmSubmission(id) {
+    const { error } = await db().from("crm_submissions").update({ archived_at: new Date().toISOString() }).eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+  async restoreCrmSubmission(id) {
+    const { error } = await db().from("crm_submissions").update({ archived_at: null }).eq("id", id);
     if (error) throw new Error(error.message);
   },
 

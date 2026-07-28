@@ -7,6 +7,7 @@
 import type {
   AppNotification,
   ContentIdea,
+  CrmSubmission,
   Game,
   GameDetail,
   GameWithTeams,
@@ -15,10 +16,18 @@ import type {
   Storyline,
 } from "@/types/domain";
 import * as seed from "./sample-data";
-import { applyContentIdeaFilters, applyGameFilters, applyMajorEventFilters, applyStorylineFilters } from "./filters";
+import {
+  applyContentIdeaFilters,
+  applyCrmSubmissionFilters,
+  applyGameFilters,
+  applyMajorEventFilters,
+  applyStorylineFilters,
+} from "./filters";
 import type {
   ContentIdeaFilterParams,
   ContentIdeaInput,
+  CrmSubmissionFilterParams,
+  CrmSubmissionInput,
   DataStore,
   GameFilterParams,
   MajorEventFilterParams,
@@ -31,6 +40,7 @@ let games: Game[] = seed.games.map((g) => ({ ...g }));
 let majorEvents: MajorEvent[] = seed.majorEvents.map((e) => ({ ...e }));
 let storylines: Storyline[] = seed.storylines.map((s) => ({ ...s }));
 let contentIdeas: ContentIdea[] = seed.contentIdeas.map((c) => ({ ...c }));
+let crmSubmissions: CrmSubmission[] = [];
 let referenceLinks: ReferenceLink[] = [];
 let notifications: AppNotification[] = seed.notifications.map((n) => ({ ...n }));
 
@@ -371,6 +381,55 @@ export const memoryStore: DataStore = {
   },
   async restoreContentIdea(id) {
     contentIdeas = contentIdeas.map((c) => (c.id === id ? { ...c, archived_at: null } : c));
+  },
+
+  async listCrmSubmissions(params: CrmSubmissionFilterParams) {
+    const result = crmSubmissions.filter((c) => (params.includeArchived ? true : !c.archived_at));
+    return applyCrmSubmissionFilters(result, params);
+  },
+
+  async createCrmSubmission(input: CrmSubmissionInput) {
+    const submission: CrmSubmission = {
+      id: uid("crm"),
+      email_subject: input.email_subject,
+      content: input.content ?? null,
+      platform: input.platform,
+      priority: input.priority,
+      status: input.status,
+      due_date: input.due_date ?? null,
+      due_time: input.due_time ?? null,
+      internal_notes: input.internal_notes ?? null,
+      is_sample: false,
+      archived_at: null,
+      created_at: new Date().toISOString(),
+    };
+    crmSubmissions = [submission, ...crmSubmissions];
+    pushNotification({
+      type: "crm_submission_added",
+      title: "New CRM submission added",
+      body: submission.email_subject,
+      related_table: "crm_submissions",
+      related_id: submission.id,
+    });
+    return submission;
+  },
+
+  async updateCrmSubmission(id, input) {
+    let updated: CrmSubmission | undefined;
+    crmSubmissions = crmSubmissions.map((c) => {
+      if (c.id !== id) return c;
+      updated = mergeDefined<CrmSubmission>(c, input);
+      return updated;
+    });
+    if (!updated) throw new Error(`CRM submission not found: ${id}`);
+    return updated;
+  },
+
+  async archiveCrmSubmission(id) {
+    crmSubmissions = crmSubmissions.map((c) => (c.id === id ? { ...c, archived_at: new Date().toISOString() } : c));
+  },
+  async restoreCrmSubmission(id) {
+    crmSubmissions = crmSubmissions.map((c) => (c.id === id ? { ...c, archived_at: null } : c));
   },
 
   async listReferenceLinks(table, id) {

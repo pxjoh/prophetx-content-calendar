@@ -1,4 +1,4 @@
-import type { ContentStatus, ContentType, Importance, Platform, Priority } from "@/types/domain";
+import type { ContentStatus, ContentType, CrmPlatform, Importance, Platform, Priority } from "@/types/domain";
 
 export const IMPORTANCE_LABEL: Record<Importance, string> = {
   standard: "Standard",
@@ -77,3 +77,8 @@ export const PLATFORM_LABEL: Record<Platform, string> = {
 export function isVideoContentType(type: ContentType): boolean {
   return type === "video" || type === "short_form_video" || type === "long_form_video";
 }
+
+export const CRM_PLATFORM_LABEL: Record<CrmPlatform, string> = {
+  push_notification: "Push Notification",
+  email: "Email",
+};

@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/content-ideas", label: "Content Ideas" },
   { href: "/graphic-requests", label: "Graphic Requests" },
   { href: "/video-requests", label: "Video Requests" },
+  { href: "/crm-submissions", label: "CRM Submissions" },
   { href: "/archived", label: "Archived" },
 ];
 

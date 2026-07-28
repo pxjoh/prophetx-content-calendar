@@ -2,6 +2,8 @@ import type {
   ContentIdea,
   ContentStatus,
   ContentType,
+  CrmPlatform,
+  CrmSubmission,
   Game,
   GameDetail,
   GameWithTeams,
@@ -65,6 +67,15 @@ export interface MajorEventFilterParams {
   to?: Date;
   leagueId?: string;
   includeArchived?: boolean;
+}
+
+export interface CrmSubmissionFilterParams {
+  status?: ContentStatus[];
+  platform?: CrmPlatform[];
+  priority?: Priority[];
+  dueOnOrBefore?: Date;
+  includeArchived?: boolean;
+  search?: string;
 }
 
 export type StorylineInput = {
@@ -132,6 +143,17 @@ export type MajorEventInput = {
   notes?: string | null;
 };
 
+export type CrmSubmissionInput = {
+  email_subject: string;
+  content?: string | null;
+  platform: CrmPlatform;
+  priority: Priority;
+  status: ContentStatus;
+  due_date?: string | null;
+  due_time?: string | null;
+  internal_notes?: string | null;
+};
+
 export interface DataStore {
   listLeagues(): Promise<League[]>;
   listTeams(leagueId?: string): Promise<Team[]>;
@@ -159,6 +181,12 @@ export interface DataStore {
   updateContentIdea(id: string, input: Partial<ContentIdeaInput>): Promise<ContentIdea>;
   archiveContentIdea(id: string): Promise<void>;
   restoreContentIdea(id: string): Promise<void>;
+
+  listCrmSubmissions(params: CrmSubmissionFilterParams): Promise<CrmSubmission[]>;
+  createCrmSubmission(input: CrmSubmissionInput): Promise<CrmSubmission>;
+  updateCrmSubmission(id: string, input: Partial<CrmSubmissionInput>): Promise<CrmSubmission>;
+  archiveCrmSubmission(id: string): Promise<void>;
+  restoreCrmSubmission(id: string): Promise<void>;
 
   listReferenceLinks(table: RelatedTable, id: string): Promise<ReferenceLink[]>;
   addReferenceLink(table: RelatedTable, id: string, url: string, label?: string | null): Promise<ReferenceLink>;

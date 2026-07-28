@@ -4,15 +4,16 @@ import { useMemo, useState, useTransition } from "react";
 import { Search } from "lucide-react";
 import {
   restoreContentIdeaAction,
+  restoreCrmSubmissionAction,
   restoreGameAction,
   restoreMajorEventAction,
   restoreStorylineAction,
 } from "@/lib/data/actions";
-import type { ContentIdea, GameWithTeams, MajorEvent, Storyline } from "@/types/domain";
+import type { ContentIdea, CrmSubmission, GameWithTeams, MajorEvent, Storyline } from "@/types/domain";
 
 interface Row {
   id: string;
-  kind: "Game" | "Major Event" | "Storyline" | "Content Idea";
+  kind: "Game" | "Major Event" | "Storyline" | "Content Idea" | "CRM Submission";
   title: string;
   onRestore: () => void;
 }
@@ -22,11 +23,13 @@ export function ArchivedPageClient({
   majorEvents,
   storylines,
   contentIdeas,
+  crmSubmissions,
 }: {
   games: GameWithTeams[];
   majorEvents: MajorEvent[];
   storylines: Storyline[];
   contentIdeas: ContentIdea[];
+  crmSubmissions: CrmSubmission[];
 }) {
   const [search, setSearch] = useState("");
   const [, startTransition] = useTransition();
@@ -57,8 +60,14 @@ export function ArchivedPageClient({
         title: c.title,
         onRestore: () => startTransition(() => void restoreContentIdeaAction(c.id)),
       })),
+      ...crmSubmissions.map((c) => ({
+        id: c.id,
+        kind: "CRM Submission" as const,
+        title: c.email_subject,
+        onRestore: () => startTransition(() => void restoreCrmSubmissionAction(c.id)),
+      })),
     ],
-    [games, majorEvents, storylines, contentIdeas]
+    [games, majorEvents, storylines, contentIdeas, crmSubmissions]
   );
 
   const filtered = rows.filter((r) => r.title.toLowerCase().includes(search.trim().toLowerCase()));

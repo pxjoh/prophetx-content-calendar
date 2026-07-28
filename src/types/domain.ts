@@ -62,7 +62,8 @@ export type NotificationType =
   | "graphic_due_soon"
   | "video_due_soon"
   | "storyline_breaking"
-  | "status_changed";
+  | "status_changed"
+  | "crm_submission_added";
 
 export type RelatedTable =
   | "games"
@@ -70,7 +71,10 @@ export type RelatedTable =
   | "storylines"
   | "content_ideas"
   | "graphic_requests"
-  | "video_concepts";
+  | "video_concepts"
+  | "crm_submissions";
+
+export type CrmPlatform = "push_notification" | "email";
 
 export interface League {
   id: string;
@@ -231,6 +235,21 @@ export interface ContentIdea {
   created_at: string;
   graphic_request: GraphicRequest | null;
   video_concept: VideoConcept | null;
+}
+
+export interface CrmSubmission {
+  id: string;
+  email_subject: string;
+  content: string | null;
+  platform: CrmPlatform;
+  priority: Priority;
+  status: ContentStatus;
+  due_date: string | null;
+  due_time: string | null;
+  internal_notes: string | null;
+  is_sample: boolean;
+  archived_at: string | null;
+  created_at: string;
 }
 
 export interface AppNotification {

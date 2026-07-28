@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getDataStore } from "./index";
 import type {
   ContentIdeaInput,
+  CrmSubmissionInput,
   MajorEventInput,
   StorylineInput,
 } from "./types";
@@ -95,6 +96,29 @@ export async function archiveMajorEventAction(id: string) {
 
 export async function restoreMajorEventAction(id: string) {
   await getDataStore().restoreMajorEvent(id);
+  refresh();
+}
+
+// CRM submissions --------------------------------------------------------
+export async function createCrmSubmissionAction(input: CrmSubmissionInput) {
+  const submission = await getDataStore().createCrmSubmission(input);
+  refresh();
+  return submission;
+}
+
+export async function updateCrmSubmissionAction(id: string, input: Partial<CrmSubmissionInput>) {
+  const submission = await getDataStore().updateCrmSubmission(id, input);
+  refresh();
+  return submission;
+}
+
+export async function archiveCrmSubmissionAction(id: string) {
+  await getDataStore().archiveCrmSubmission(id);
+  refresh();
+}
+
+export async function restoreCrmSubmissionAction(id: string) {
+  await getDataStore().restoreCrmSubmission(id);
   refresh();
 }
 
