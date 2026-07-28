@@ -56,7 +56,7 @@ export function GameCard({ game, onClick }: { game: GameWithTeams; onClick?: () 
         </div>
         <div className="text-right text-xs text-slate-400">
           <div className="font-medium text-slate-300">{formatGameDate(game.start_time)}</div>
-          <div>{formatGameTime(game.start_time)}</div>
+          <div>{game.start_time_tbd ? "Time TBD" : formatGameTime(game.start_time)}</div>
         </div>
       </div>
 

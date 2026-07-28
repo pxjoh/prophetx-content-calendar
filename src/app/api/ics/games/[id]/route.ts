@@ -10,8 +10,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const calendar = buildIcsCalendar([
     {
       uid: `game-${game.id}`,
-      title: `${game.away_team.name} @ ${game.home_team.name}`,
+      title: `${game.away_team.name} @ ${game.home_team.name}${game.start_time_tbd ? " (Time TBD)" : ""}`,
       description: [
+        game.start_time_tbd ? "Kickoff time not yet announced — date shown is confirmed, time is a placeholder." : null,
         game.tv_network ? `TV: ${game.tv_network}` : null,
         game.odds_spread ? `Spread: ${game.odds_spread}` : null,
         game.prophetx_market_url ? `ProphetX: ${game.prophetx_market_url}` : null,

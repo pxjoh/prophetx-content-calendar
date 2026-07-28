@@ -84,13 +84,17 @@ export const teams: Team[] = [
   { id: "team-purdue", league_id: "league-cbb", conference_id: "conf-big-12-bb", name: "Purdue Boilermakers", short_name: "Purdue", abbreviation: "PUR", logo_url: null, primary_color: "#CEB888", record: "0-0", conference_record: null, ranking: 6, ranking_source: "AP", is_sample: true },
 ];
 
-const base: Pick<Game, "status" | "home_score" | "away_score" | "odds_updated_at" | "is_sample" | "archived_at"> = {
+const base: Pick<
+  Game,
+  "status" | "home_score" | "away_score" | "odds_updated_at" | "is_sample" | "archived_at" | "start_time_tbd"
+> = {
   status: "scheduled",
   home_score: null,
   away_score: null,
   odds_updated_at: new Date().toISOString(),
   is_sample: true,
   archived_at: null,
+  start_time_tbd: false,
 };
 
 export const games: Game[] = [

@@ -77,7 +77,7 @@ export function GameDetailContent({
           </div>
           <div className="text-right text-sm text-slate-300">
             <div className="font-semibold text-white">{formatGameDate(detail.start_time)}</div>
-            <div>{formatGameTime(detail.start_time)}</div>
+            <div>{detail.start_time_tbd ? "Time TBD" : formatGameTime(detail.start_time)}</div>
             {detail.tv_network && <div className="mt-1 text-slate-400">{detail.tv_network}</div>}
             {detail.venue && <div className="text-slate-500">{detail.venue}</div>}
           </div>

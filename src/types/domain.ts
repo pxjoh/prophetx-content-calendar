@@ -119,7 +119,8 @@ export interface Game {
   week: string | null;
   home_team_id: string;
   away_team_id: string;
-  start_time: string; // ISO
+  start_time: string; // ISO — real date always; time-of-day is a placeholder when start_time_tbd is true
+  start_time_tbd: boolean;
   tv_network: string | null;
   venue: string | null;
   status: GameStatus;
