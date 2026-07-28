@@ -74,18 +74,23 @@ async function pushNotification(input: {
 
 async function buildGamesWithTeams(games: Game[]): Promise<GameWithTeams[]> {
   if (games.length === 0) return [];
-  const gameIds = games.map((g) => g.id);
 
+  // Fetch storylines/content_ideas/reference_links unfiltered-by-game-id and
+  // group client-side instead of `.in("game_id", gameIds)` — with hundreds of
+  // games that ID list becomes a multi-KB query string that can exceed URL
+  // length limits (this broke prerendering once real NFL + CFB data landed).
+  // These tables stay small regardless of how many games exist, so fetching
+  // them in full is cheap and avoids the scaling trap entirely.
   const [leagues, teams, storylineRows, ideaRows, linkRows] = await Promise.all([
     fetchLeagues(),
     fetchTeams(),
-    unwrap<{ id: string; game_id: string; title: string; description: string | null }[]>(
-      await db().from("storylines").select("id, game_id, title, description").in("game_id", gameIds).is("archived_at", null)
+    unwrap<{ id: string; game_id: string | null; title: string; description: string | null }[]>(
+      await db().from("storylines").select("id, game_id, title, description").not("game_id", "is", null).is("archived_at", null)
     ),
     unwrap<
       {
         id: string;
-        game_id: string;
+        game_id: string | null;
         title: string;
         description: string | null;
         graphic_requests: { id: string } | null;
@@ -95,10 +100,10 @@ async function buildGamesWithTeams(games: Game[]): Promise<GameWithTeams[]> {
       await db()
         .from("content_ideas")
         .select("id, game_id, title, description, graphic_requests(id), video_concepts(id)")
-        .in("game_id", gameIds)
+        .not("game_id", "is", null)
         .is("archived_at", null)
     ),
-    unwrap<ReferenceLink[]>(await db().from("reference_links").select("*").eq("related_table", "games").in("related_id", gameIds)),
+    unwrap<ReferenceLink[]>(await db().from("reference_links").select("*").eq("related_table", "games")),
   ]);
 
   const leagueById = new Map(leagues.map((l) => [l.id, l]));
