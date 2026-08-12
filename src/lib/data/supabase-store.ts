@@ -176,6 +176,16 @@ export const supabaseStore: DataStore = {
     return leagues.filter((l) => l.is_active).sort((a, b) => a.sort_order - b.sort_order);
   },
 
+  async listAllLeagues() {
+    const leagues = await fetchLeagues();
+    return leagues.sort((a, b) => a.sort_order - b.sort_order);
+  },
+
+  async setLeagueActive(id, isActive) {
+    const { error } = await db().from("leagues").update({ is_active: isActive }).eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
   async listTeams(leagueId) {
     let query = db().from("teams").select("*");
     if (leagueId) query = query.eq("league_id", leagueId);

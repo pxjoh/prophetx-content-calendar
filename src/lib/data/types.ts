@@ -156,6 +156,8 @@ export type CrmSubmissionInput = {
 
 export interface DataStore {
   listLeagues(): Promise<League[]>;
+  listAllLeagues(): Promise<League[]>;
+  setLeagueActive(id: string, isActive: boolean): Promise<void>;
   listTeams(leagueId?: string): Promise<Team[]>;
 
   listGames(params: GameFilterParams): Promise<GameWithTeams[]>;

@@ -14,6 +14,12 @@ function refresh() {
   revalidatePath("/", "layout");
 }
 
+// Leagues ----------------------------------------------------------------
+export async function setLeagueActiveAction(id: string, isActive: boolean) {
+  await getDataStore().setLeagueActive(id, isActive);
+  refresh();
+}
+
 // Storylines -----------------------------------------------------------
 export async function createStorylineAction(input: StorylineInput) {
   const storyline = await getDataStore().createStoryline(input);

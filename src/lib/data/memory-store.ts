@@ -11,6 +11,7 @@ import type {
   Game,
   GameDetail,
   GameWithTeams,
+  League,
   MajorEvent,
   ReferenceLink,
   Storyline,
@@ -36,6 +37,7 @@ import type {
   StorylineInput,
 } from "./types";
 
+let leagues: League[] = seed.leagues.map((l) => ({ ...l }));
 let games: Game[] = seed.games.map((g) => ({ ...g }));
 let majorEvents: MajorEvent[] = seed.majorEvents.map((e) => ({ ...e }));
 let storylines: Storyline[] = seed.storylines.map((s) => ({ ...s }));
@@ -71,7 +73,7 @@ function teamById(id: string) {
 }
 
 function leagueById(id: string) {
-  const league = seed.leagues.find((l) => l.id === id);
+  const league = leagues.find((l) => l.id === id);
   if (!league) throw new Error(`Unknown league id: ${id}`);
   return league;
 }
@@ -93,11 +95,19 @@ function toGameWithTeams(game: Game): GameWithTeams {
 
 export const memoryStore: DataStore = {
   async listLeagues() {
-    return seed.leagues.filter((l) => l.is_active).sort((a, b) => a.sort_order - b.sort_order);
+    return leagues.filter((l) => l.is_active).sort((a, b) => a.sort_order - b.sort_order);
+  },
+
+  async listAllLeagues() {
+    return [...leagues].sort((a, b) => a.sort_order - b.sort_order);
+  },
+
+  async setLeagueActive(id, isActive) {
+    leagues = leagues.map((l) => (l.id === id ? { ...l, is_active: isActive } : l));
   },
 
   async listTeams(leagueId) {
-    const inactiveLeagueIds = new Set(seed.leagues.filter((l) => !l.is_active).map((l) => l.id));
+    const inactiveLeagueIds = new Set(leagues.filter((l) => !l.is_active).map((l) => l.id));
     const scoped = seed.teams.filter((t) => !inactiveLeagueIds.has(t.league_id));
     return leagueId ? scoped.filter((t) => t.league_id === leagueId) : scoped;
   },
@@ -137,7 +147,7 @@ export const memoryStore: DataStore = {
   },
 
   async listMajorEvents(params: MajorEventFilterParams) {
-    const inactiveLeagueIds = new Set(seed.leagues.filter((l) => !l.is_active).map((l) => l.id));
+    const inactiveLeagueIds = new Set(leagues.filter((l) => !l.is_active).map((l) => l.id));
     const result = majorEvents.filter(
       (e) => (params.includeArchived ? true : !e.archived_at) && !(e.league_id && inactiveLeagueIds.has(e.league_id))
     );
@@ -190,7 +200,7 @@ export const memoryStore: DataStore = {
   },
 
   async listStorylines(params: StorylineFilterParams) {
-    const inactiveLeagueIds = new Set(seed.leagues.filter((l) => !l.is_active).map((l) => l.id));
+    const inactiveLeagueIds = new Set(leagues.filter((l) => !l.is_active).map((l) => l.id));
     const result = storylines.filter(
       (s) => (params.includeArchived ? true : !s.archived_at) && !(s.league_id && inactiveLeagueIds.has(s.league_id))
     );
