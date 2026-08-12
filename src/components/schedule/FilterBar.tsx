@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { LayoutList, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
 import type { Importance, League, Team } from "@/types/domain";
 import { IMPORTANCE_LABEL } from "@/lib/labels";
 
@@ -54,6 +54,7 @@ export function FilterBar({ leagues, teams }: { leagues: League[]; teams: Team[]
     [params, setParam]
   );
 
+  const view = params.get("view") === "list" ? "list" : "timeline";
   const activeLeagues = params.get("league")?.split(",").filter(Boolean) ?? [];
   const activeImportance = params.get("importance")?.split(",").filter(Boolean) ?? [];
 
@@ -103,6 +104,31 @@ export function FilterBar({ leagues, teams }: { leagues: League[]; teams: Team[]
               {l.slug.toUpperCase()}
             </Chip>
           ))}
+        </div>
+
+        <div className="flex items-center gap-0.5 rounded-lg border border-white/10 p-0.5">
+          <button
+            type="button"
+            onClick={() => setParam("view", null)}
+            aria-label="Timeline view"
+            title="Timeline view"
+            className={`flex items-center rounded-md p-1.5 transition ${
+              view === "timeline" ? "bg-teal-500/10 text-teal-300" : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            <LayoutList className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setParam("view", "list")}
+            aria-label="Condensed list view"
+            title="Condensed list view"
+            className={`flex items-center rounded-md p-1.5 transition ${
+              view === "list" ? "bg-teal-500/10 text-teal-300" : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            <Rows3 className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         <button

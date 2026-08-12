@@ -90,6 +90,63 @@ function TimelineCard({ item, onSelectGame }: { item: TimelineItem; onSelectGame
   );
 }
 
+function TimelineListRow({ item, onSelectGame }: { item: TimelineItem; onSelectGame: (id: string) => void }) {
+  const dateLabel = (
+    <span className="w-14 shrink-0 text-xs font-bold text-green-400">{formatTimelineDate(item.date)}</span>
+  );
+
+  if (item.kind === "game") {
+    const { game } = item;
+    const leagueSlug = game.league.slug;
+    return (
+      <button
+        type="button"
+        onClick={() => onSelectGame(game.id)}
+        className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition hover:bg-navy-800"
+      >
+        {dateLabel}
+        <span
+          className={`hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold sm:inline-flex ${
+            LEAGUE_TAG_CLASS[leagueSlug] ?? "bg-navy-700 text-slate-300"
+          }`}
+        >
+          {LEAGUE_EMOJI[leagueSlug] ?? "🎯"} {leagueSlug.toUpperCase()}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">
+          {game.away_team.name} @ {game.home_team.name}
+        </span>
+        {game.tv_network && <span className="hidden shrink-0 text-xs text-slate-500 md:block">{game.tv_network}</span>}
+      </button>
+    );
+  }
+
+  const { event } = item;
+  return (
+    <div className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5">
+      {dateLabel}
+      <span className="hidden shrink-0 rounded-full bg-navy-700 px-2 py-0.5 text-[10px] font-semibold text-slate-300 sm:inline-flex">
+        📌 Event
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">{event.title}</span>
+    </div>
+  );
+}
+
+function MonthGroupListSection({ label, items, onSelectGame }: { label: string; items: TimelineItem[]; onSelectGame: (id: string) => void }) {
+  return (
+    <div>
+      <div className="sticky top-[57px] z-10 -mx-2 bg-navy-950/95 px-2 py-2 backdrop-blur">
+        <span className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</span>
+      </div>
+      <div className="divide-y divide-white/5">
+        {items.map((item) => (
+          <TimelineListRow key={item.id} item={item} onSelectGame={onSelectGame} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MonthGroupSection({
   label,
   items,
@@ -160,7 +217,7 @@ function MonthGroupSection({
   );
 }
 
-export function GameTimeline({ items }: { items: TimelineItem[]; leagues?: League[] }) {
+export function GameTimeline({ items, view = "timeline" }: { items: TimelineItem[]; leagues?: League[]; view?: "timeline" | "list" }) {
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const monthGroups = groupByMonth(items, (item) => item.date);
 
@@ -168,6 +225,17 @@ export function GameTimeline({ items }: { items: TimelineItem[]; leagues?: Leagu
     return (
       <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-slate-500">
         No games or events match the current filters.
+      </div>
+    );
+  }
+
+  if (view === "list") {
+    return (
+      <div className="space-y-4">
+        {monthGroups.map((group) => (
+          <MonthGroupListSection key={group.key} label={group.label} items={group.items} onSelectGame={setSelectedGameId} />
+        ))}
+        {selectedGameId && <GameDetailModal gameId={selectedGameId} onClose={() => setSelectedGameId(null)} />}
       </div>
     );
   }

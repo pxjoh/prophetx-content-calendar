@@ -37,6 +37,7 @@ export default async function SchedulePage({
   const sp = await searchParams;
   const store = getDataStore();
   const filters = parseFilters(sp);
+  const view = sp.view === "list" ? "list" : "timeline";
   const isCustomRange = Boolean(filters.from || filters.to);
 
   const [leagues, teams, filteredGames, allGames, majorEvents, contentIdeas, storylines] = await Promise.all([
@@ -125,7 +126,7 @@ export default async function SchedulePage({
 
       <FilterBar leagues={leagues} teams={teams} />
 
-      <GameTimeline items={timelineItems} />
+      <GameTimeline items={timelineItems} view={view} />
     </div>
   );
 }
