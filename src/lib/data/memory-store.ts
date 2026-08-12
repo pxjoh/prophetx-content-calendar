@@ -97,7 +97,9 @@ export const memoryStore: DataStore = {
   },
 
   async listTeams(leagueId) {
-    return leagueId ? seed.teams.filter((t) => t.league_id === leagueId) : [...seed.teams];
+    const inactiveLeagueIds = new Set(seed.leagues.filter((l) => !l.is_active).map((l) => l.id));
+    const scoped = seed.teams.filter((t) => !inactiveLeagueIds.has(t.league_id));
+    return leagueId ? scoped.filter((t) => t.league_id === leagueId) : scoped;
   },
 
   async listGames(params: GameFilterParams) {
@@ -135,7 +137,10 @@ export const memoryStore: DataStore = {
   },
 
   async listMajorEvents(params: MajorEventFilterParams) {
-    const result = majorEvents.filter((e) => (params.includeArchived ? true : !e.archived_at));
+    const inactiveLeagueIds = new Set(seed.leagues.filter((l) => !l.is_active).map((l) => l.id));
+    const result = majorEvents.filter(
+      (e) => (params.includeArchived ? true : !e.archived_at) && !(e.league_id && inactiveLeagueIds.has(e.league_id))
+    );
     return applyMajorEventFilters(result, params);
   },
 
@@ -185,7 +190,10 @@ export const memoryStore: DataStore = {
   },
 
   async listStorylines(params: StorylineFilterParams) {
-    const result = storylines.filter((s) => (params.includeArchived ? true : !s.archived_at));
+    const inactiveLeagueIds = new Set(seed.leagues.filter((l) => !l.is_active).map((l) => l.id));
+    const result = storylines.filter(
+      (s) => (params.includeArchived ? true : !s.archived_at) && !(s.league_id && inactiveLeagueIds.has(s.league_id))
+    );
     return applyStorylineFilters(result, params);
   },
 

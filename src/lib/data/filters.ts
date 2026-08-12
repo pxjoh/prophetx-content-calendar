@@ -34,7 +34,7 @@ export function applyGameFilters(
   params: GameFilterParams,
   searchCtx: GameSearchContext
 ): GameWithTeams[] {
-  let result = games;
+  let result = games.filter((g) => g.league.is_active);
 
   if (params.from) result = result.filter((g) => new Date(g.start_time) >= params.from!);
   if (params.to) result = result.filter((g) => new Date(g.start_time) <= params.to!);

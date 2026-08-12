@@ -179,7 +179,10 @@ export const supabaseStore: DataStore = {
   async listTeams(leagueId) {
     let query = db().from("teams").select("*");
     if (leagueId) query = query.eq("league_id", leagueId);
-    return unwrap(await query);
+    const [queryResult, leagues] = await Promise.all([query, fetchLeagues()]);
+    const teams = unwrap<Team[]>(queryResult);
+    const inactiveLeagueIds = new Set(leagues.filter((l) => !l.is_active).map((l) => l.id));
+    return teams.filter((t) => !inactiveLeagueIds.has(t.league_id));
   },
 
   async listGames(params: GameFilterParams) {
@@ -240,8 +243,11 @@ export const supabaseStore: DataStore = {
   async listMajorEvents(params: MajorEventFilterParams) {
     let query = db().from("major_events").select("*");
     if (!params.includeArchived) query = query.is("archived_at", null);
-    const rows = unwrap<MajorEvent[]>(await query);
-    return applyMajorEventFilters(rows, params);
+    const [queryResult, leagues] = await Promise.all([query, fetchLeagues()]);
+    const rows = unwrap<MajorEvent[]>(queryResult);
+    const inactiveLeagueIds = new Set(leagues.filter((l) => !l.is_active).map((l) => l.id));
+    const scoped = rows.filter((e) => !(e.league_id && inactiveLeagueIds.has(e.league_id)));
+    return applyMajorEventFilters(scoped, params);
   },
 
   async createMajorEvent(input: MajorEventInput) {
@@ -289,8 +295,11 @@ export const supabaseStore: DataStore = {
   async listStorylines(params: StorylineFilterParams) {
     let query = db().from("storylines").select("*");
     if (!params.includeArchived) query = query.is("archived_at", null);
-    const rows = unwrap<Storyline[]>(await query);
-    const filtered = applyStorylineFilters(rows, params);
+    const [queryResult, leagues] = await Promise.all([query, fetchLeagues()]);
+    const rows = unwrap<Storyline[]>(queryResult);
+    const inactiveLeagueIds = new Set(leagues.filter((l) => !l.is_active).map((l) => l.id));
+    const scoped = rows.filter((s) => !(s.league_id && inactiveLeagueIds.has(s.league_id)));
+    const filtered = applyStorylineFilters(scoped, params);
     return attachRelevantTeamIds(filtered);
   },
 
