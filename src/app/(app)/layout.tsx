@@ -1,6 +1,14 @@
 import { getDataStore } from "@/lib/data";
 import { TopNav } from "@/components/layout/TopNav";
 
+// Every page under this layout reads live Supabase data behind a password
+// gate (notifications here, plus whatever each page fetches) — there's no
+// benefit to statically prerendering an internal dashboard like this at
+// build time, and doing so makes the whole production build depend on a
+// successful network call to Supabase during the build itself (one hiccup
+// there fails the entire deploy, as happened prerendering /archived).
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const notifications = await getDataStore().listNotifications();
 
