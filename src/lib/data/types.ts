@@ -11,8 +11,10 @@ import type {
   League,
   MajorEvent,
   MajorEventType,
+  MarketType,
   Platform,
   Priority,
+  PriceClipRenderWithTeams,
   ReferenceLink,
   RelatedTable,
   AppNotification,
@@ -154,11 +156,47 @@ export type CrmSubmissionInput = {
   internal_notes?: string | null;
 };
 
+export type TeamInput = {
+  league_id: string;
+  conference_id?: string | null;
+  name: string;
+  short_name?: string | null;
+  abbreviation?: string | null;
+  primary_color?: string | null;
+};
+
+export type PriceClipRenderInput = {
+  league_id: string;
+  home_team_id: string;
+  away_team_id: string;
+  market_type: MarketType;
+  spread_line?: number | null;
+  px_event_id?: string | null;
+  px_market_id?: string | null;
+  since?: string | null;
+  until?: string | null;
+  headline?: string | null;
+  endline?: string | null;
+  requested_by?: string | null;
+};
+
+export type PriceClipRenderPatch = Partial<{
+  status: "pending" | "rendering" | "done" | "error";
+  px_event_id: string | null;
+  px_market_id: string | null;
+  video_url: string | null;
+  still_url: string | null;
+  error: string | null;
+}>;
+
 export interface DataStore {
   listLeagues(): Promise<League[]>;
   listAllLeagues(): Promise<League[]>;
   setLeagueActive(id: string, isActive: boolean): Promise<void>;
   listTeams(leagueId?: string): Promise<Team[]>;
+  createTeam(input: TeamInput): Promise<Team>;
+  updateTeam(id: string, input: Partial<TeamInput>): Promise<Team>;
+  deleteTeam(id: string): Promise<void>;
 
   listGames(params: GameFilterParams): Promise<GameWithTeams[]>;
   getGameDetail(id: string): Promise<GameDetail | null>;
@@ -197,6 +235,10 @@ export interface DataStore {
   listNotifications(): Promise<AppNotification[]>;
   markNotificationRead(id: string): Promise<void>;
   markAllNotificationsRead(): Promise<void>;
+
+  listPriceClipRenders(params?: { leagueId?: string }): Promise<PriceClipRenderWithTeams[]>;
+  createPriceClipRender(input: PriceClipRenderInput): Promise<PriceClipRenderWithTeams>;
+  updatePriceClipRender(id: string, patch: PriceClipRenderPatch): Promise<PriceClipRenderWithTeams>;
 }
 
 export type { Game };

@@ -13,8 +13,11 @@ import type {
   GameWithTeams,
   League,
   MajorEvent,
+  PriceClipRender,
+  PriceClipRenderWithTeams,
   ReferenceLink,
   Storyline,
+  Team,
 } from "@/types/domain";
 import * as seed from "./sample-data";
 import {
@@ -33,11 +36,15 @@ import type {
   GameFilterParams,
   MajorEventFilterParams,
   MajorEventInput,
+  PriceClipRenderInput,
+  PriceClipRenderPatch,
   StorylineFilterParams,
   StorylineInput,
+  TeamInput,
 } from "./types";
 
 let leagues: League[] = seed.leagues.map((l) => ({ ...l }));
+let teams: Team[] = seed.teams.map((t) => ({ ...t }));
 let games: Game[] = seed.games.map((g) => ({ ...g }));
 let majorEvents: MajorEvent[] = seed.majorEvents.map((e) => ({ ...e }));
 let storylines: Storyline[] = seed.storylines.map((s) => ({ ...s }));
@@ -45,6 +52,7 @@ let contentIdeas: ContentIdea[] = seed.contentIdeas.map((c) => ({ ...c }));
 let crmSubmissions: CrmSubmission[] = [];
 let referenceLinks: ReferenceLink[] = [];
 let notifications: AppNotification[] = seed.notifications.map((n) => ({ ...n }));
+let priceClipRenders: PriceClipRender[] = [];
 
 function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
@@ -67,7 +75,7 @@ function pushNotification(input: Omit<AppNotification, "id" | "created_at" | "is
 }
 
 function teamById(id: string) {
-  const team = seed.teams.find((t) => t.id === id);
+  const team = teams.find((t) => t.id === id);
   if (!team) throw new Error(`Unknown team id: ${id}`);
   return team;
 }
@@ -108,8 +116,43 @@ export const memoryStore: DataStore = {
 
   async listTeams(leagueId) {
     const inactiveLeagueIds = new Set(leagues.filter((l) => !l.is_active).map((l) => l.id));
-    const scoped = seed.teams.filter((t) => !inactiveLeagueIds.has(t.league_id));
+    const scoped = teams.filter((t) => !inactiveLeagueIds.has(t.league_id));
     return leagueId ? scoped.filter((t) => t.league_id === leagueId) : scoped;
+  },
+
+  async createTeam(input: TeamInput) {
+    const team: Team = {
+      id: uid("team"),
+      league_id: input.league_id,
+      conference_id: input.conference_id ?? null,
+      name: input.name,
+      short_name: input.short_name ?? null,
+      abbreviation: input.abbreviation ?? null,
+      logo_url: null,
+      primary_color: input.primary_color ?? null,
+      record: null,
+      conference_record: null,
+      ranking: null,
+      ranking_source: null,
+      is_sample: false,
+    };
+    teams = [team, ...teams];
+    return team;
+  },
+
+  async updateTeam(id, input) {
+    let updated: Team | undefined;
+    teams = teams.map((t) => {
+      if (t.id !== id) return t;
+      updated = mergeDefined<Team>(t, input);
+      return updated;
+    });
+    if (!updated) throw new Error(`Team not found: ${id}`);
+    return updated;
+  },
+
+  async deleteTeam(id) {
+    teams = teams.filter((t) => t.id !== id);
   },
 
   async listGames(params: GameFilterParams) {
@@ -471,4 +514,56 @@ export const memoryStore: DataStore = {
   async markAllNotificationsRead() {
     notifications = notifications.map((n) => ({ ...n, is_read: true }));
   },
+
+  async listPriceClipRenders(params) {
+    const scoped = params?.leagueId
+      ? priceClipRenders.filter((r) => r.league_id === params.leagueId)
+      : priceClipRenders;
+    return [...scoped].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(toRenderWithTeams);
+  },
+
+  async createPriceClipRender(input: PriceClipRenderInput) {
+    const render: PriceClipRender = {
+      id: uid("clip"),
+      league_id: input.league_id,
+      home_team_id: input.home_team_id,
+      away_team_id: input.away_team_id,
+      market_type: input.market_type,
+      spread_line: input.spread_line ?? null,
+      px_event_id: input.px_event_id ?? null,
+      px_market_id: input.px_market_id ?? null,
+      since: input.since ?? null,
+      until: input.until ?? null,
+      headline: input.headline ?? null,
+      endline: input.endline ?? null,
+      status: "pending",
+      video_url: null,
+      still_url: null,
+      error: null,
+      requested_by: input.requested_by ?? null,
+      created_at: new Date().toISOString(),
+    };
+    priceClipRenders = [render, ...priceClipRenders];
+    return toRenderWithTeams(render);
+  },
+
+  async updatePriceClipRender(id, patch: PriceClipRenderPatch) {
+    let updated: PriceClipRender | undefined;
+    priceClipRenders = priceClipRenders.map((r) => {
+      if (r.id !== id) return r;
+      updated = mergeDefined<PriceClipRender>(r, patch);
+      return updated;
+    });
+    if (!updated) throw new Error(`Price clip render not found: ${id}`);
+    return toRenderWithTeams(updated);
+  },
 };
+
+function toRenderWithTeams(render: PriceClipRender): PriceClipRenderWithTeams {
+  return {
+    ...render,
+    league: leagueById(render.league_id),
+    home_team: teamById(render.home_team_id),
+    away_team: teamById(render.away_team_id),
+  };
+}

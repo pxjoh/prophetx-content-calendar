@@ -7,6 +7,7 @@ import type {
   CrmSubmissionInput,
   MajorEventInput,
   StorylineInput,
+  TeamInput,
 } from "./types";
 import type { Importance, RelatedTable } from "@/types/domain";
 
@@ -17,6 +18,24 @@ function refresh() {
 // Leagues ----------------------------------------------------------------
 export async function setLeagueActiveAction(id: string, isActive: boolean) {
   await getDataStore().setLeagueActive(id, isActive);
+  refresh();
+}
+
+// Teams --------------------------------------------------------------------
+export async function createTeamAction(input: TeamInput) {
+  const team = await getDataStore().createTeam(input);
+  refresh();
+  return team;
+}
+
+export async function updateTeamAction(id: string, input: Partial<TeamInput>) {
+  const team = await getDataStore().updateTeam(id, input);
+  refresh();
+  return team;
+}
+
+export async function deleteTeamAction(id: string) {
+  await getDataStore().deleteTeam(id);
   refresh();
 }
 

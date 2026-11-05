@@ -1,0 +1,5 @@
+# Python deps for clip.py, installed inside the Vercel Sandbox (see
+# src/lib/render/sandbox.ts). No opencv/scipy: sports team tiles need no
+# face detection, and the ported pchip() never used scipy in the first place.
+pillow>=10
+numpy>=1.24

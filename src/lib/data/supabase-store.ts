@@ -21,8 +21,11 @@ import type {
   GameFilterParams,
   MajorEventFilterParams,
   MajorEventInput,
+  PriceClipRenderInput,
+  PriceClipRenderPatch,
   StorylineFilterParams,
   StorylineInput,
+  TeamInput,
 } from "./types";
 import type {
   ContentIdea,
@@ -34,6 +37,8 @@ import type {
   League,
   MajorEvent,
   NotificationType,
+  PriceClipRender,
+  PriceClipRenderWithTeams,
   ReferenceLink,
   RelatedTable,
   Storyline,
@@ -61,6 +66,22 @@ async function fetchLeagues(): Promise<League[]> {
 
 async function fetchTeams(): Promise<Team[]> {
   return unwrap(await db().from("teams").select("*"));
+}
+
+async function attachRenderTeamsAndLeague(rows: PriceClipRender[]): Promise<PriceClipRenderWithTeams[]> {
+  if (rows.length === 0) return [];
+  const [leagues, teams] = await Promise.all([fetchLeagues(), fetchTeams()]);
+  const leagueById = new Map(leagues.map((l) => [l.id, l]));
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+  return rows.map((row) => {
+    const league = leagueById.get(row.league_id);
+    const homeTeam = teamById.get(row.home_team_id);
+    const awayTeam = teamById.get(row.away_team_id);
+    if (!league || !homeTeam || !awayTeam) {
+      throw new Error(`Price clip render ${row.id} references a missing league or team`);
+    }
+    return { ...row, league, home_team: homeTeam, away_team: awayTeam };
+  });
 }
 
 async function pushNotification(input: {
@@ -193,6 +214,33 @@ export const supabaseStore: DataStore = {
     const teams = unwrap<Team[]>(queryResult);
     const inactiveLeagueIds = new Set(leagues.filter((l) => !l.is_active).map((l) => l.id));
     return teams.filter((t) => !inactiveLeagueIds.has(t.league_id));
+  },
+
+  async createTeam(input: TeamInput) {
+    return unwrap<Team>(
+      await db()
+        .from("teams")
+        .insert({
+          league_id: input.league_id,
+          conference_id: input.conference_id ?? null,
+          name: input.name,
+          short_name: input.short_name ?? null,
+          abbreviation: input.abbreviation ?? null,
+          primary_color: input.primary_color ?? null,
+          is_sample: false,
+        })
+        .select("*")
+        .single()
+    );
+  },
+
+  async updateTeam(id, input) {
+    return unwrap<Team>(await db().from("teams").update(input).eq("id", id).select("*").single());
+  },
+
+  async deleteTeam(id) {
+    const { error } = await db().from("teams").delete().eq("id", id);
+    if (error) throw new Error(error.message);
   },
 
   async listGames(params: GameFilterParams) {
@@ -587,5 +635,45 @@ export const supabaseStore: DataStore = {
   async markAllNotificationsRead() {
     const { error } = await db().from("notifications").update({ is_read: true }).eq("is_read", false);
     if (error) throw new Error(error.message);
+  },
+
+  async listPriceClipRenders(params) {
+    let query = db().from("price_clip_renders").select("*").order("created_at", { ascending: false });
+    if (params?.leagueId) query = query.eq("league_id", params.leagueId);
+    const rows = unwrap<PriceClipRender[]>(await query);
+    return attachRenderTeamsAndLeague(rows);
+  },
+
+  async createPriceClipRender(input: PriceClipRenderInput) {
+    const row = unwrap<PriceClipRender>(
+      await db()
+        .from("price_clip_renders")
+        .insert({
+          league_id: input.league_id,
+          home_team_id: input.home_team_id,
+          away_team_id: input.away_team_id,
+          market_type: input.market_type,
+          spread_line: input.spread_line ?? null,
+          px_event_id: input.px_event_id ?? null,
+          px_market_id: input.px_market_id ?? null,
+          since: input.since ?? null,
+          until: input.until ?? null,
+          headline: input.headline ?? null,
+          endline: input.endline ?? null,
+          requested_by: input.requested_by ?? null,
+        })
+        .select("*")
+        .single()
+    );
+    const [withTeams] = await attachRenderTeamsAndLeague([row]);
+    return withTeams;
+  },
+
+  async updatePriceClipRender(id: string, patch: PriceClipRenderPatch) {
+    const row = unwrap<PriceClipRender>(
+      await db().from("price_clip_renders").update(patch).eq("id", id).select("*").single()
+    );
+    const [withTeams] = await attachRenderTeamsAndLeague([row]);
+    return withTeams;
   },
 };

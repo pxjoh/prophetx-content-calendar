@@ -76,6 +76,9 @@ export type RelatedTable =
 
 export type CrmPlatform = "push_notification" | "email";
 
+export type MarketType = "moneyline" | "spread";
+export type RenderStatus = "pending" | "rendering" | "done" | "error";
+
 export interface League {
   id: string;
   name: string;
@@ -279,4 +282,31 @@ export interface GameWithTeams extends Game {
 export interface GameDetail extends GameWithTeams {
   storylines: Storyline[];
   content_ideas: ContentIdea[];
+}
+
+export interface PriceClipRender {
+  id: string;
+  league_id: string;
+  home_team_id: string;
+  away_team_id: string;
+  market_type: MarketType;
+  spread_line: number | null;
+  px_event_id: string | null;
+  px_market_id: string | null;
+  since: string | null;
+  until: string | null;
+  headline: string | null;
+  endline: string | null;
+  status: RenderStatus;
+  video_url: string | null;
+  still_url: string | null;
+  error: string | null;
+  requested_by: string | null;
+  created_at: string;
+}
+
+export interface PriceClipRenderWithTeams extends PriceClipRender {
+  league: League;
+  home_team: Team;
+  away_team: Team;
 }
