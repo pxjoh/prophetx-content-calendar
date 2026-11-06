@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { resolveGameAuto } from "@/lib/snowflake/queries";
+import { findGameByTeamsAndDate, resolveMoneylineMarket, resolveSpreadLineHistory } from "@/lib/snowflake/queries";
 
-// Tries to auto-resolve a game's Snowflake event/market/outcome IDs from
-// league + team names + date. This is expected to fail until the real
-// SPORT_EVENT-style schema is confirmed (see src/lib/snowflake/queries.ts
-// header) — callers should treat `resolved: false` as normal, not an
-// error, and fall back to manual event/market ID entry in the UI.
+// Resolves a game's Snowflake event/market/outcome IDs from league + team
+// names + date. Verified against the real schema on 2026-11-06 (see
+// src/lib/snowflake/queries.ts header) — this should work reliably for any
+// settled or in-progress game once the Snowflake service account exists.
 export async function POST(request: Request) {
   const body = await request.json();
   const { league, homeTeamName, awayTeamName, date, marketType } = body as {
@@ -24,20 +23,36 @@ export async function POST(request: Request) {
   }
 
   try {
-    const candidates = await resolveGameAuto({ league, homeTeamName, awayTeamName, date, marketType });
-    if (candidates.length === 0) {
+    const games = await findGameByTeamsAndDate({ league, homeTeamName, awayTeamName, date });
+    if (games.length === 0) {
       return NextResponse.json({
         resolved: false,
-        reason: "No matching game found for that date/matchup. Double-check the date, or enter the event/market IDs manually.",
+        reason: "No matching game found for that date/matchup. Double-check the date and team names.",
       });
     }
-    return NextResponse.json({ resolved: true, candidates });
+    const game = games[0];
+
+    if (marketType === "moneyline") {
+      const market = await resolveMoneylineMarket(game.sportEventId);
+      if (!market) {
+        return NextResponse.json({ resolved: false, reason: "Game found, but no moneyline market exists for it.", game });
+      }
+      return NextResponse.json({ resolved: true, game, market });
+    }
+
+    const lines = await resolveSpreadLineHistory(game.sportEventId);
+    if (lines.length === 0) {
+      return NextResponse.json({ resolved: false, reason: "Game found, but no spread line history exists for it.", game });
+    }
+    return NextResponse.json({ resolved: true, game, lines });
   } catch (err) {
-    return NextResponse.json({
-      resolved: false,
-      reason:
-        "Auto-lookup isn't wired to a confirmed Snowflake schema yet — enter the event ID, market ID, and outcome IDs manually (see SPORTS.md Step 1 for how to find them).",
-      detail: err instanceof Error ? err.message : String(err),
-    });
+    return NextResponse.json(
+      {
+        resolved: false,
+        reason: "Snowflake lookup failed — enter the event/market/outcome IDs manually.",
+        detail: err instanceof Error ? err.message : String(err),
+      },
+      { status: 200 }
+    );
   }
 }

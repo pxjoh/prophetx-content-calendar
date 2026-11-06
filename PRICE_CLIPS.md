@@ -20,14 +20,21 @@ CLI scripts. Election features from the original toolkit were intentionally left
 
 - **Teams** (`/teams`): fully editable roster — name, abbreviation, color. No logos (not legally cleared); teams
   render as color tiles with the abbreviation, same as the original kit's sports mode.
-- **Price Clips** (`/price-clips`): pick league + teams + market, then either:
-  - **Outside feed** route — `OPENFLOW.REPORTING.BEST_ODDS_MINUTES`, needs event/market/outcome IDs + tipoff time.
-  - **ProphetX book** route — `PROPHET.ORDERBOOK.SNAPSHOTS`, needs event/market IDs + a time window, and you confirm
-    which side the stored contract belongs to (the data doesn't label it — check the final score, same as the
-    original toolkit's documented process).
-  - Finding those IDs today is still manual (see `src/lib/snowflake/queries.ts` header) — `resolveGameAuto()` is an
-    unverified first attempt at automating it, and will need its table/column names corrected once
-    Engineering/Analytics confirms the real schema.
+- **Price Clips** (`/price-clips`): pick league + teams + date + market, hit **Find Game**, and it auto-resolves the
+  Snowflake event/market/outcome IDs — verified live against the real schema on 2026-11-06 (via Tensor), not a
+  guess. See `src/lib/snowflake/queries.ts` for the full join chain and how team↔outcome mapping works *without*
+  checking the final score (the original toolkit's manual workaround): `SPORT_EVENT_COMPETITORS.SEQ` (0=home,
+  1=away) lines up directly with the `{$competitor1}` / `{$competitor2}` outcome-template slots in
+  `OUTCOME_DESCRIPTIONS`, confirmed across multiple real settled games. Spread markets additionally use
+  `PROPHET.ANALYTICS.MARKET_LINE_MOVEMENTS` to list every historical line interval (the traded contract's outcome
+  ids change whenever the main line moves), and the UI lets you pick which interval to chart.
+  If auto-lookup doesn't find a match (new league, data gap, etc.), manual event/market/outcome ID entry is still
+  available as a fallback in the UI.
+  Uses `OPENFLOW.REPORTING.BEST_ODDS_MINUTES` (the outside feed) for the actual price history in both cases.
+  `PROPHET.ORDERBOOK.SNAPSHOTS` (ProphetX's own book) is wired in `src/lib/snowflake/queries.ts` /
+  `src/lib/price-clips/normalize.ts` but not surfaced in the UI yet — it stores one contract per market with no
+  outcome label, so picking the right side still needs the final-score check; worth revisiting once there's time to
+  find whatever maps `INSTRUMENT_ID` to an outcome.
 - Rendering runs in an ephemeral **Vercel Sandbox** (`src/lib/render/sandbox.ts`), executing the trimmed renderer at
   `render/clip.py` — ffmpeg + Pillow + numpy only, no OpenCV/face-detection (sports teams don't use photos). The
   sandbox gets a plain JSON payload and the renderer script; it never sees Supabase or Snowflake credentials.
@@ -36,11 +43,12 @@ CLI scripts. Election features from the original toolkit were intentionally left
 - Headline/endline text is checked against the same posting rules as the original toolkit (no bet/wager/odds/
   sportsbook/gamble/stake language, no em dashes) before a render is allowed to start.
 
-## What's still manual / unverified
+## What's still open
 
-- **Auto game lookup** (`resolveGameAuto`): written against a guessed `SPORT_EVENT`-style table, not a confirmed
-  one. Expect it to fail until Engineering/Analytics confirms the real schema — manual event/market ID entry in the
-  UI always works in the meantime.
+- **Snowflake service account**: the auto-lookup queries are verified (via Tensor, inside a Claude session) but the
+  deployed app still needs its own standing credentials (`SNOWFLAKE_ACCOUNT` etc.) to run them itself — Tensor only
+  works inside a chat.
+- **ProphetX-book route** (`PROPHET.ORDERBOOK.SNAPSHOTS`): not wired into the UI — see above.
 - **Render timing**: not yet measured end-to-end against real data. If a render consistently takes too long for one
   blocking HTTP request, switch the render API route to kick off the sandbox job and poll `price_clip_renders.status`
   instead of waiting inline.
