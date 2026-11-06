@@ -65,7 +65,7 @@ export function PriceClipsPageClient({
   const [homeOutcomeId, setHomeOutcomeId] = useState("");
   const [awayOutcomeId, setAwayOutcomeId] = useState("");
   const [tipoff, setTipoff] = useState("");
-  const [showManual, setShowManual] = useState(false);
+  const [showManual, setShowManual] = useState(true);
   const [rawRowsText, setRawRowsText] = useState("");
   const [rawRowsError, setRawRowsError] = useState<string | null>(null);
 
@@ -76,6 +76,7 @@ export function PriceClipsPageClient({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PriceClipRenderWithTeams | null>(null);
   const [renders, setRenders] = useState(initialRenders);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   const league = leagues.find((l) => l.id === leagueId);
   const teamsForLeague = useMemo(() => teams.filter((t) => t.league_id === leagueId), [teams, leagueId]);
@@ -83,13 +84,42 @@ export function PriceClipsPageClient({
   const awayTeam = teams.find((t) => t.id === awayTeamId);
   const copyIssues = useMemo(() => checkAllPostingCopy(headline, endline), [headline, endline]);
 
+  function buildClaudePrompt() {
+    const tournamentName =
+      { nba: "NBA", nfl: "NFL", mlb: "MLB", nhl: "NHL", cfb: "NCAAF", cbb: "NCAAB" }[league?.slug ?? ""] ?? league?.name ?? "<league>";
+    const leagueName = league?.name ?? "<league>";
+    const home = homeTeam?.name ?? "<home team>";
+    const away = awayTeam?.name ?? "<away team>";
+    const when = date || "<date, e.g. 2026-11-05>";
+    const market = marketType === "spread" ? "spread" : "moneyline";
+    return `With Tensor connected, find this ProphetX ${leagueName} game and pull its ${market} price history:
+
+${away} at ${home}, ${when}
+
+Steps:
+1. Find the SPORT_EVENT_ID: join OPENFLOW.REPORTING.SPORT_EVENTS to TOURNAMENTS (TOURNAMENTS.NAME = '${tournamentName}'), and to SPORT_EVENT_COMPETITORS joined to COMPETITORS (SEQ=0 is home, SEQ=1 is away) to match the two teams and date.
+2. Find the ${market} MARKET_ID for that event: join OPENFLOW.REPORTING.MARKETS to MARKET_DESCRIPTIONS where TYPE = '${market}' and SUB_TYPE = '${market}'.
+3. Find the home/away OUTCOME_ID: query OUTCOME_DESCRIPTIONS for that MARKET_ID — the row with NAME containing "competitor1" is home, "competitor2" is away.
+4. Run this, filtered to a sensible window around tipoff (not the full multi-day pregame history):
+   SELECT TIME AS T_UTC, OUTCOME_ID, ODDS_TYPE, PROBABILITY
+   FROM OPENFLOW.REPORTING.BEST_ODDS_MINUTES
+   WHERE SPORT_EVENT_ID = <event id> AND MARKET_ID = <market id>
+   ORDER BY TIME, OUTCOME_ID
+5. Give me back: the event ID, market ID, home outcome ID, away outcome ID, the tipoff time (when ODDS_TYPE switches from PREMATCH to LIVE), and a JSON file with the rows as [{"T_UTC": ..., "OUTCOME_ID": ..., "ODDS_TYPE": ..., "PROBABILITY": ...}, ...] so I can upload it directly to the Price Clips page.`;
+  }
+
+  async function copyPrompt() {
+    await navigator.clipboard.writeText(buildClaudePrompt());
+    setPromptCopied(true);
+    setTimeout(() => setPromptCopied(false), 2500);
+  }
+
   function resetLookup() {
     setResolvedGame(null);
     setResolvedMoneyline(null);
     setSpreadLines([]);
     setSelectedSpreadIdx(null);
     setLookupReason(null);
-    setShowManual(false);
   }
 
   async function findGame() {
@@ -310,13 +340,25 @@ export function PriceClipsPageClient({
           </div>
           <button
             type="button"
+            onClick={copyPrompt}
+            className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-navy-950 hover:bg-teal-400"
+          >
+            {promptCopied ? "Copied!" : "Copy Prompt for Claude"}
+          </button>
+          <button
+            type="button"
             onClick={findGame}
             disabled={looking}
             className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50"
+            title="Needs the app's own Snowflake service account, which doesn't exist — use Copy Prompt for Claude instead"
           >
-            {looking ? "Finding…" : "Find Game"}
+            {looking ? "Finding…" : "Find Game (needs Snowflake)"}
           </button>
         </div>
+        <p className="text-[11px] text-slate-500">
+          Paste the copied prompt into a Claude chat with Tensor connected, then upload the JSON file it gives you
+          back below.
+        </p>
 
         {resolvedGame && (
           <div className="rounded-lg border border-teal-500/30 bg-teal-500/5 p-3 text-sm">
