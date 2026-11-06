@@ -402,9 +402,31 @@ export function PriceClipsPageClient({
               />
             </div>
             <div className="col-span-2">
-              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                Price data (optional — skips Snowflake entirely)
-              </label>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  Price data (optional — skips Snowflake entirely)
+                </label>
+                <label className="cursor-pointer rounded-lg bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/15">
+                  Upload JSON file
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        setRawRowsText(String(reader.result ?? ""));
+                        setRawRowsError(null);
+                      };
+                      reader.onerror = () => setRawRowsError("Couldn't read that file.");
+                      reader.readAsText(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
               <textarea
                 value={rawRowsText}
                 onChange={(e) => {
@@ -412,12 +434,12 @@ export function PriceClipsPageClient({
                   setRawRowsError(null);
                 }}
                 rows={5}
-                placeholder={'Paste the JSON rows from a Tensor query, e.g.\n[{"T_UTC": "2026-11-05T00:41:00", "OUTCOME_ID": 4, "ODDS_TYPE": "PREMATCH", "PROBABILITY": 0.55}, ...]'}
+                placeholder={'Upload a file above, or paste the JSON rows from a Tensor query, e.g.\n[{"T_UTC": "2026-11-05T00:41:00", "OUTCOME_ID": 4, "ODDS_TYPE": "PREMATCH", "PROBABILITY": 0.55}, ...]'}
                 className="w-full rounded-lg border border-white/10 bg-navy-950 px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600"
               />
               <p className="mt-1 text-[11px] text-slate-500">
-                Leave blank to have the app query Snowflake itself (needs the service account). Paste rows here
-                instead to render without any Snowflake connection — same shape{" "}
+                Leave blank to have the app query Snowflake itself (needs the service account). Upload or paste rows
+                here instead to render without any Snowflake connection — same shape{" "}
                 <code>OPENFLOW.REPORTING.BEST_ODDS_MINUTES</code> returns (T_UTC, OUTCOME_ID, ODDS_TYPE, PROBABILITY),
                 filtered to this event/market, from a Tensor query run by hand.
               </p>
