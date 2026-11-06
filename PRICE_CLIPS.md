@@ -9,12 +9,35 @@ CLI scripts. Election features from the original toolkit were intentionally left
 1. **Apply the migration**: `node scripts/run-sql.mjs supabase/migrations/20260730000000_add_price_clip_renders.sql`
 2. **Seed NHL + MLB leagues/teams**: `npx tsx scripts/seed-nhl-mlb.ts` (NFL/NBA/CFB/CBB already existed)
 3. **Create the storage bucket**: `npx tsx scripts/create-price-clips-bucket.ts`
-4. **Snowflake service account**: get `SNOWFLAKE_ACCOUNT` / `SNOWFLAKE_USER` / `SNOWFLAKE_PRIVATE_KEY` /
-   `SNOWFLAKE_WAREHOUSE` / `SNOWFLAKE_ROLE` from DevOps/Engineering — read-only, scoped to the OPENFLOW/PROPHET
-   schemas. Add them to `.env.local` (see `.env.example`). This is a different thing from Tensor: Tensor only works
-   inside a Claude/MCP session, not this deployed app's backend.
+4. **Snowflake service account** (optional — see "No-Snowflake path" below for a way to skip this entirely): get
+   `SNOWFLAKE_ACCOUNT` / `SNOWFLAKE_USER` / `SNOWFLAKE_PRIVATE_KEY` / `SNOWFLAKE_WAREHOUSE` / `SNOWFLAKE_ROLE` from
+   DevOps/Engineering — read-only, scoped to the OPENFLOW/PROPHET schemas. Add them to `.env.local` (see
+   `.env.example`). This is a different thing from Tensor: Tensor only works inside a Claude/MCP session, not this
+   deployed app's backend.
 5. **Vercel Sandbox credentials** (local dev only — automatic via OIDC once deployed on Vercel): `VERCEL_TOKEN`,
    `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID`.
+
+## No-Snowflake path
+
+The service account above is only needed for the app to query Snowflake *itself*, on demand. Until it exists (or
+if it never will), rendering still works end to end with manually-supplied data:
+
+1. On `/price-clips`, click **Enter event/market IDs manually instead** and fill in Event ID / Market ID / Home
+   Outcome ID / Away Outcome ID / Tipoff (someone with Tensor access resolves these once per game — see
+   `src/lib/snowflake/queries.ts` for the exact join chain, or just ask Claude in a chat with Tensor connected).
+2. Paste the matching price rows into the **Price data** textarea — the JSON `run_sql` returns for:
+   ```sql
+   SELECT CONVERT_TIMEZONE('UTC','America/New_York',TIME)::TIMESTAMP_NTZ AS T_ET, TIME AS T_UTC,
+          OUTCOME_ID, ODDS_TYPE, BEST_ODDS, PROBABILITY
+   FROM OPENFLOW.REPORTING.BEST_ODDS_MINUTES
+   WHERE SPORT_EVENT_ID = <event id> AND MARKET_ID = <market id>
+   ORDER BY T_UTC, OUTCOME_ID, ODDS_TYPE
+   ```
+3. Hit **Generate Clip**. The render route uses the pasted rows directly and never touches Snowflake.
+
+Verified for real on 2026-11-06 against the Atlanta Hawks @ Washington Wizards game (event 1704707869): pulled
+3,450 real rows via Tensor, ran them through the exact normalizer and renderer this app uses, and got a correct
+clip (ATL 99.0¢ / WAS 1.0¢, matching the real final score) — with zero Snowflake credentials in the app itself.
 
 ## How it works
 

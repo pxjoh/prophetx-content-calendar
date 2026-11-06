@@ -29,6 +29,11 @@ interface RenderRequestBody {
   headline?: string | null;
   endline?: string | null;
   requestedBy?: string | null;
+  // Snowflake-free path: rows already pulled by hand (e.g. a Tensor query
+  // run in a Claude chat) and pasted into the page, same shape
+  // fetchBestOddsMinutes() would return. When present, skips the app's own
+  // Snowflake connection entirely — no service account required.
+  rawRows?: { T_UTC: string; OUTCOME_ID: string | number; ODDS_TYPE: "PREMATCH" | "LIVE"; PROBABILITY: number }[];
 }
 
 function teamTile(team: Team, side: "home" | "away") {
@@ -86,7 +91,16 @@ export async function POST(request: Request) {
     await store.updatePriceClipRender(record.id, { status: "rendering" });
 
     let points: { home: { t: string; mid: number }[]; away: { t: string; mid: number }[] };
-    if (body.dataRoute === "feed") {
+    if (body.rawRows) {
+      const normalized = normalizeFeedRows(
+        body.rawRows.map((r) => ({ tUtc: r.T_UTC, outcomeId: r.OUTCOME_ID, oddsType: r.ODDS_TYPE, probability: r.PROBABILITY })),
+        { tipoffUtc: body.tipoffUtc!, homeOutcomeId: body.homeOutcomeId!, awayOutcomeId: body.awayOutcomeId! }
+      );
+      points = {
+        home: normalized.filter((p) => p.side === "home").map((p) => ({ t: p.ts, mid: p.mid })),
+        away: normalized.filter((p) => p.side === "away").map((p) => ({ t: p.ts, mid: p.mid })),
+      };
+    } else if (body.dataRoute === "feed") {
       const rows = await fetchBestOddsMinutes({ eventId: body.pxEventId, marketId: body.pxMarketId });
       const normalized = normalizeFeedRows(
         rows.map((r) => ({ tUtc: r.T_UTC, outcomeId: r.OUTCOME_ID, oddsType: r.ODDS_TYPE, probability: r.PROBABILITY })),

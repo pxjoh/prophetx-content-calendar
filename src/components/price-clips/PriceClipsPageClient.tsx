@@ -66,6 +66,8 @@ export function PriceClipsPageClient({
   const [awayOutcomeId, setAwayOutcomeId] = useState("");
   const [tipoff, setTipoff] = useState("");
   const [showManual, setShowManual] = useState(false);
+  const [rawRowsText, setRawRowsText] = useState("");
+  const [rawRowsError, setRawRowsError] = useState<string | null>(null);
 
   const [headline, setHeadline] = useState("");
   const [endline, setEndline] = useState("");
@@ -176,6 +178,24 @@ export function PriceClipsPageClient({
       body.homeOutcomeId = homeOutcomeId;
       body.awayOutcomeId = awayOutcomeId;
       body.tipoffUtc = toIsoUtc(tipoff);
+
+      if (rawRowsText.trim()) {
+        try {
+          const parsed = JSON.parse(rawRowsText);
+          const rows = Array.isArray(parsed) ? parsed : parsed.rows;
+          if (!Array.isArray(rows) || rows.length === 0) throw new Error("Expected a non-empty JSON array of rows.");
+          for (const r of rows) {
+            if (!r.T_UTC || r.OUTCOME_ID === undefined || !r.ODDS_TYPE || r.PROBABILITY === undefined) {
+              throw new Error("Each row needs T_UTC, OUTCOME_ID, ODDS_TYPE, and PROBABILITY.");
+            }
+          }
+          body.rawRows = rows;
+          setRawRowsError(null);
+        } catch (err) {
+          setRawRowsError(err instanceof Error ? err.message : "Couldn't parse pasted data.");
+          return;
+        }
+      }
     }
 
     setSubmitting(true);
@@ -380,6 +400,28 @@ export function PriceClipsPageClient({
                 onChange={(e) => setTipoff(e.target.value)}
                 className="w-full rounded-lg border border-white/10 bg-navy-950 px-3 py-2 text-sm text-white"
               />
+            </div>
+            <div className="col-span-2">
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                Price data (optional — skips Snowflake entirely)
+              </label>
+              <textarea
+                value={rawRowsText}
+                onChange={(e) => {
+                  setRawRowsText(e.target.value);
+                  setRawRowsError(null);
+                }}
+                rows={5}
+                placeholder={'Paste the JSON rows from a Tensor query, e.g.\n[{"T_UTC": "2026-11-05T00:41:00", "OUTCOME_ID": 4, "ODDS_TYPE": "PREMATCH", "PROBABILITY": 0.55}, ...]'}
+                className="w-full rounded-lg border border-white/10 bg-navy-950 px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Leave blank to have the app query Snowflake itself (needs the service account). Paste rows here
+                instead to render without any Snowflake connection — same shape{" "}
+                <code>OPENFLOW.REPORTING.BEST_ODDS_MINUTES</code> returns (T_UTC, OUTCOME_ID, ODDS_TYPE, PROBABILITY),
+                filtered to this event/market, from a Tensor query run by hand.
+              </p>
+              {rawRowsError && <p className="mt-1 text-xs text-red-300">{rawRowsError}</p>}
             </div>
           </div>
         )}
